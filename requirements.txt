@@ -1,6 +1,7 @@
 pykrx>=1.0.45
 pandas>=2.0
 python-dateutil>=2.8
-streamlit>=1.30
+streamlit>=1.35
 altair>=5.0
+finance-datareader>=0.9.50
 pytest>=7.0
