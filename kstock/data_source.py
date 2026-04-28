@@ -59,17 +59,35 @@ def resolve_business_day(target: date) -> date:
     raise RuntimeError(f"No KRX business day found within {_BUSDAY_LOOKBACK} days of {target}")
 
 
+def discover_tickers(d: date) -> dict[str, str]:
+    """Return ``{ticker: market}`` for every active KOSPI + KOSDAQ ticker on ``d``.
+
+    Cheap — two list calls, no per-ticker requests.
+    """
+    out: dict[str, str] = {}
+    for market in ("KOSPI", "KOSDAQ"):
+        for t in _retry(stock.get_market_ticker_list, fmt(d), market=market):
+            out[str(t).zfill(6)] = market
+    return out
+
+
+def fetch_ticker_name(ticker: str) -> str:
+    """One-off Korean name lookup for a ticker. Each call is one HTTP request."""
+    return _retry(stock.get_market_ticker_name, ticker)
+
+
 def fetch_ticker_universe(d: date) -> pd.DataFrame:
     """Return a DataFrame of every KOSPI + KOSDAQ ticker active on ``d``.
 
-    Columns: ticker, name, market.
+    Columns: ticker, name, market. Issues one HTTP call per ticker for the name —
+    prefer ``discover_tickers`` + selective ``fetch_ticker_name`` from ``refresh``
+    so cached names aren't re-fetched every run.
     """
     rows = []
-    for market in ("KOSPI", "KOSDAQ"):
-        tickers = _retry(stock.get_market_ticker_list, fmt(d), market=market)
-        for t in tickers:
-            name = _retry(stock.get_market_ticker_name, t)
-            rows.append({"ticker": t, "name": name, "market": market})
+    discovered = discover_tickers(d)
+    for ticker, market in discovered.items():
+        name = fetch_ticker_name(ticker)
+        rows.append({"ticker": ticker, "name": name, "market": market})
     return pd.DataFrame(rows)
 
 

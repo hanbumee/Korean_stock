@@ -5,6 +5,8 @@ import argparse
 import logging
 from datetime import date, datetime
 
+import pandas as pd
+
 from . import data_source, storage
 from .calendar import build_anchor_set, fmt
 from .config import MARKETS
@@ -41,7 +43,31 @@ def refresh(today: date | None = None, *, force: bool = False) -> dict[str, str]
     log.info("latest KRX business day: %s", fmt(t0))
 
     log.info("refreshing ticker universe from %s", fmt(t0))
-    storage.upsert_tickers(data_source.fetch_ticker_universe(t0))
+    discovered = data_source.discover_tickers(t0)
+    known = storage.load_known_tickers()
+    new_tickers = [t for t in discovered if t not in known]
+    market_changed = [t for t, m in discovered.items() if known.get(t) not in (None, m)]
+    log.info(
+        "tickers: %d known, %d new, %d market-changed",
+        len(known), len(new_tickers), len(market_changed),
+    )
+    rows = []
+    for t in new_tickers:
+        rows.append({"ticker": t, "name": data_source.fetch_ticker_name(t),
+                     "market": discovered[t]})
+    # For tickers whose market field changed, just rewrite the row (name from cache).
+    if market_changed:
+        with storage.connect() as conn:
+            cached = dict(conn.execute(
+                f"SELECT ticker, name FROM tickers WHERE ticker IN "
+                f"({','.join('?' * len(market_changed))})",
+                market_changed,
+            ))
+        for t in market_changed:
+            rows.append({"ticker": t, "name": cached.get(t, t),
+                         "market": discovered[t]})
+    if rows:
+        storage.upsert_tickers(pd.DataFrame(rows))
 
     resolved: dict[str, str] = {"t0": _ensure_snapshot(t0, force=force)}
     anchors = build_anchor_set(t0).anchors

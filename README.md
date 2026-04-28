@@ -41,7 +41,7 @@ Three tabs:
 3. **Per-ticker detail** — line chart of foreign ratio over all cached dates plus Δpp by
    window.
 
-## Daily cron
+## Daily cron (local)
 
 ```
 30 18 * * 1-5 /home/user/Korean_stock/scripts/cron_refresh.sh
@@ -49,6 +49,41 @@ Three tabs:
 
 Runs 18:30 KST Mon–Fri (after KRX close + EOD foreign-investor data publish). Logs to
 `data/refresh.log`.
+
+## Deploy to Streamlit Community Cloud (no laptop needed)
+
+A GitHub Actions workflow at `.github/workflows/refresh.yml` runs `kstock.refresh`
+daily on a schedule and commits the updated `data/kstock.db` back to this branch.
+Streamlit Community Cloud auto-redeploys on each commit, so the dashboard URL is
+always reading fresh data.
+
+One-time setup (all from your phone browser):
+
+1. **Trigger the first refresh** to populate the DB:
+   - Open the repo on GitHub → **Actions** tab → "Refresh KRX foreign-ownership
+     snapshots" → **Run workflow** → branch `claude/korean-stock-tracker-09X1u`.
+   - Wait for the run to finish (≈ 5–15 min on first run; subsequent runs ≈ 1–2 min
+     because ticker names are cached). Confirm a new commit landed with
+     `data/kstock.db`.
+2. **Deploy the dashboard**:
+   - Go to <https://share.streamlit.io> and sign in with GitHub.
+   - **New app** → repository `hanbumee/Korean_stock`, branch
+     `claude/korean-stock-tracker-09X1u`, main file `app/dashboard.py`. Deploy.
+   - You'll get a permanent URL like `https://<name>.streamlit.app`. Add to your
+     iPhone home screen.
+3. **Daily auto-refresh** is now on:
+   - The cron runs at 09:30 UTC = 18:30 KST Mon–Fri.
+   - Each successful refresh commits a new `data/kstock.db`; Streamlit Cloud
+     redeploys within ~30 seconds.
+   - You can also re-run the workflow on demand from the Actions tab.
+
+Notes:
+
+- pykrx scrapes `data.krx.co.kr` from a US-based GitHub-hosted runner. KRX is
+  publicly accessible without an API key, but if a refresh fails, re-run the
+  workflow manually — pykrx is occasionally flaky on transient KRX errors.
+- The committed `data/kstock.db` is small (≈ a few MB even after months of
+  history). If it ever grows large, prune older snapshots with a SQL `DELETE`.
 
 ## Tests
 

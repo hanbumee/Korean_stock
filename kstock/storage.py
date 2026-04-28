@@ -59,6 +59,14 @@ def upsert_tickers(df: pd.DataFrame, path: Path = DB_PATH) -> None:
         )
 
 
+def load_known_tickers(path: Path = DB_PATH) -> dict[str, str]:
+    """Return ``{ticker: market}`` for tickers already cached in ``tickers`` table."""
+    with connect(path) as conn:
+        return {
+            t: m for t, m in conn.execute("SELECT ticker, market FROM tickers")
+        }
+
+
 def has_snapshot(date_str: str, market: str, path: Path = DB_PATH) -> bool:
     """True iff snapshot rows exist for the given (date, market) pair."""
     with connect(path) as conn:
