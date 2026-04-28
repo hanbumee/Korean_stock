@@ -35,6 +35,11 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Refresh snapshots
+        env:
+          # KRX put data.krx.co.kr behind login on 2025-12-27. Add these as repo
+          # secrets at Settings -> Secrets and variables -> Actions.
+          KRX_ID: ${{ secrets.KRX_ID }}
+          KRX_PW: ${{ secrets.KRX_PW }}
         run: python -m kstock.refresh -v
 
       - name: Commit updated snapshot DB

@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import argparse
 import logging
+import os
+import sys
 from datetime import date, datetime
 
 import pandas as pd
@@ -12,6 +14,23 @@ from .calendar import build_anchor_set, fmt
 from .config import MARKETS
 
 log = logging.getLogger("kstock.refresh")
+
+
+def _check_krx_credentials() -> None:
+    """KRX put data.krx.co.kr behind login on 2025-12-27. pykrx reads KRX_ID and
+    KRX_PW from the environment to authenticate. Fail fast with a clear message
+    rather than burying the issue in pykrx's noisy retry loop.
+    """
+    missing = [v for v in ("KRX_ID", "KRX_PW") if not os.environ.get(v)]
+    if missing:
+        log.error(
+            "Missing required env var(s): %s. "
+            "KRX requires a free account (https://data.krx.co.kr) since 2025-12-27. "
+            "Set KRX_ID and KRX_PW locally, or in GitHub repo Settings -> "
+            "Secrets and variables -> Actions, then re-run.",
+            ", ".join(missing),
+        )
+        sys.exit(2)
 
 
 def _ensure_snapshot(target: date, *, force: bool = False) -> str:
@@ -38,6 +57,7 @@ def refresh(today: date | None = None, *, force: bool = False) -> dict[str, str]
 
     Returns a mapping of window -> resolved yyyymmdd anchor date (plus 't0').
     """
+    _check_krx_credentials()
     storage.init_db()
     t0 = data_source.latest_business_day(today)
     log.info("latest KRX business day: %s", fmt(t0))

@@ -57,7 +57,20 @@ daily on a schedule and commits the updated `data/kstock.db` back to this branch
 Streamlit Community Cloud auto-redeploys on each commit, so the dashboard URL is
 always reading fresh data.
 
-One-time setup (all from your phone browser):
+### KRX credentials (required since 2025-12-27)
+
+KRX put `data.krx.co.kr` behind login on 27 Dec 2025. pykrx now reads `KRX_ID` and
+`KRX_PW` from the environment. Without these, every request returns HTTP 400.
+
+1. Register a free account at <https://data.krx.co.kr> (KRX Data Marketplace).
+   Korean phone or i-PIN verification is required.
+2. In your GitHub repo: **Settings → Secrets and variables → Actions → New
+   repository secret**. Add two secrets:
+   - `KRX_ID` — your KRX login ID
+   - `KRX_PW` — your KRX password
+3. The workflow already references them — no code change needed.
+
+### One-time deploy (all from your phone browser)
 
 1. **Trigger the first refresh** to populate the DB:
    - Open the repo on GitHub → **Actions** tab → "Refresh KRX foreign-ownership
